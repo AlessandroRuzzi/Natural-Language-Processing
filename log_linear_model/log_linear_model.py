@@ -64,7 +64,8 @@ class LogLinearModel:
         None
 
         """
-        step_update = self.learning_rate * self.gradient_loss(y,self.parameters,self.positive_features,self.negative_features)
+        self.gradient_value = self.gradient_loss(y,self.parameters,self.positive_features,self.negative_features)
+        step_update = self.learning_rate * self.gradient_value
         self.parameters = np.subtract(self.parameters,step_update)
 
     def fit(self, X: np.ndarray, y: np.ndarray):
@@ -91,7 +92,9 @@ class LogLinearModel:
             self.gradient_descent(y)
             curr_loss = self.loss(y,self.parameters,self.positive_features,self.negative_features)
             if self.verbose:
-                print(f"Current Iteration: {epoch}/{self.iterations} || Current loss: {curr_loss} || Change in loss: {np.abs(curr_loss-prev_loss)}")
+                abs_changes = np.abs(self.gradient_value)
+                print(f"Current Iteration: {epoch}/{self.iterations} || Current loss: {curr_loss} || Change in loss: {np.abs(curr_loss-prev_loss)}"
+                      f" || Absolute Largest value: {np.max(abs_changes)} Coefficient index: {np.argmax(abs_changes)}")
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         """Predicts binary target labels for input data `X`.
@@ -165,6 +168,12 @@ def gradient_negative_log_likelihood(y: np.ndarray, parameters, positive_feature
         grad_nll = np.add(grad_nll, np.add(first_term_grad_nll, second_term_grad_nll))
 
     return grad_nll
+
+def map_param(parameters : np.ndarray):
+    new_parameters = np.zeros(shape=(int(parameters.shape[0]/2)))
+    for i in range(int(len(parameters)/2)):
+        new_parameters[i] = parameters[(int(parameters.shape[0]/2)) +i] - parameters[i]
+    return new_parameters
 
 # Set seeds to ensure reproducibility
 np.random.seed(42)
@@ -357,6 +366,38 @@ plt.plot(data_dim, values_time_pred_lr,label = "Logistic Regression")
 plt.legend()
 plt.title('Prediction Time')
 plt.show()
+
+
+plt.scatter(list(range(map_param(llm_first.parameters).shape[0])), map_param(llm_first.parameters),label = "Log Linear Model")
+plt.xlabel('Coefficient index')
+plt.ylabel('Coefficient values')
+plt.scatter(list(range(lr_first.coef_.shape[1])), lr_first.coef_.T,label = "Logistic Regression")
+plt.legend()
+plt.title('Coefficients Values 100 samples')
+plt.xticks(list(range(lr_first.coef_.shape[1])))
+plt.show()
+
+plt.scatter(list(range(map_param(llm_second.parameters).shape[0])), map_param(llm_second.parameters),label = "Log Linear Model")
+plt.xlabel('Coefficient index')
+plt.ylabel('Coefficient values')
+plt.scatter(list(range(lr_second.coef_.shape[1])), lr_second.coef_.T,label = "Logistic Regression")
+plt.legend()
+plt.title('Coefficients Values 1000 samples')
+plt.xticks(list(range(lr_second.coef_.shape[1])))
+plt.show()
+
+
+plt.scatter(list(range(map_param(llm_third.parameters).shape[0])), map_param(llm_third.parameters),label = "Log Linear Model")
+plt.xlabel('Coefficient index')
+plt.ylabel('Coefficient values')
+plt.scatter(list(range(lr_third.coef_.shape[1])), lr_third.coef_.T,label = "Logistic Regression")
+plt.legend()
+plt.title('Coefficients Values 10000 samples')
+plt.xticks(list(range(lr_third.coef_.shape[1])))
+plt.show()
+
+
+
 
 
 
