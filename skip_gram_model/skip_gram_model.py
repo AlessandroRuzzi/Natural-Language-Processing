@@ -10,6 +10,7 @@ nltk.download('stopwords')
 nltk.download('punkt')
 from nltk.corpus import brown
 from nltk.corpus import stopwords
+from numpy import save
 
 sentences = brown.sents()
 print(len(sentences))
@@ -90,7 +91,7 @@ for i in range(len(words_to_sample)):
 words_to_sample = tuple(words_to_sample)
 
 negative_samples = np.random.choice(size = K*len(dataset_tmp),a= words_to_sample, p=probs)
-
+print(len(words_to_sample))
 for i in range(len(dataset_tmp)):
     if(count % 100000 == 0):
         print(f"sample {count}/{len(dataset_tmp)}")
@@ -115,4 +116,110 @@ for i in range(len(dataset_tmp)):
 
 print(dataset[:3])
 
+
+#training params
+lr = 0.03
+epochs = 10
+
+W = np.random.uniform(-0.8, 0.8,size=(V_size+1,N))
+W_prime = np.random.uniform(-0.8, 0.8,size=(V_size+1,N))
+
+import math
+
+def sigmoid(x):
+  return 1 / (1 + math.e ** -x)
+
+def wrd_gradient(W,W_prime,sample):
+    first_term = -(1-sigmoid(np.dot(W[sample[0]],W_prime[sample[1]])))*W_prime[sample[1]]
+    second_term = 0
+    for i in range(K):
+        second_term += (sigmoid(np.dot(W[sample[0]],W_prime[sample[2+i]])))*W_prime[sample[2+i]]
+
+    return first_term + second_term
+
+def ctx_gradient(W,W_prime,sample,negative = False,index = 0):
+    if negative:
+        gradient = (sigmoid(np.dot(W[sample[0]], W_prime[sample[2+index]]))) * W[sample[0]]
+    else:
+        gradient = -(1-sigmoid(np.dot(W[sample[0]],W_prime[sample[1]])))*W[sample[0]]
+
+    return gradient
+def loss_one_sample(W,W_prime,sample):
+    first_term = -np.log(sigmoid(np.dot(W[sample[0]], W_prime[sample[1]])))
+    second_term = 0
+    for i in range(K):
+        second_term += - np.log(1 - sigmoid(np.dot(W[sample[0]], W_prime[sample[2 + i]])))
+
+    return first_term + second_term
+
+##fit
+total_loss = 0
+counter = 0
+
+np.random.shuffle(dataset)
+dataset = list(dataset)
+
+for epoch in range(epochs):
+    for sample in dataset:
+        total_loss += loss_one_sample(W,W_prime,sample)
+    print(f"epoch: {epoch+1}/{epochs} || total loss: {total_loss/len(dataset)}")
+    counter = 0
+    total_loss = 0
+    for sample in dataset:
+        if (counter % 100000 == 0):
+            print(f"sample: {counter}/{len(dataset)}")
+        gradient_wrd = wrd_gradient(W,W_prime,sample)
+        #W[sample[0]] = W[sample[0]] - lr*gradient_wrd
+
+        gradient_ctx = ctx_gradient(W, W_prime, sample)
+        #W_prime[sample[1]] = W_prime[sample[1]] - lr * gradient_ctx
+        gradient_ctx_neg = []
+        for i in range(K):
+            gradient_ctx_neg.append(ctx_gradient(W, W_prime, sample,negative=True,index = i))
+            #W_prime[sample[2+i]] = W_prime[sample[2+i]] - lr * gradient_ctx
+        W[sample[0]] = W[sample[0]] - lr*gradient_wrd
+        W_prime[sample[1]] = W_prime[sample[1]] - lr * gradient_ctx
+        for i in range(K):
+            W_prime[sample[2+i]] = W_prime[sample[2+i]] - lr * gradient_ctx_neg[i]
+        counter +=1
+
+print("train end")
+save("W.npy",W)
+save("W_prime.npy",W_prime)
+
+
+from numpy.linalg import norm
+
+def cosine_similarity(emd_x,emd_y):
+  return np.dot(emd_x,emd_y)/(norm(emd_x)*norm(emd_y))
+
+x = ["film","film","home","home","father","father","street","writer","writer","boy","children","children","eat","eat","water","water"]
+y = ["movie","water","house","yellow","mother","street","avenue","poet","potatoes","girl","young","old","food","sport","liquid","solid"]
+
+for i in range(len(x)):
+    sim = cosine_similarity(W[word_to_index[x[i]]],W[word_to_index[y[i]]])
+    print(f"Similarity between {x[i]} and {y[i]} is : {sim}")
+
+x_1 = ["london", "father", "children", "sister", "happiness"]
+x_2 = ["england", "man", "young", "boy", "good"]
+x_3 = ["germany", "woman", "old", "boy", "bad"]
+
+y = ["berlin", "mother", "parents", "brother", "pain"]
+
+for i in range(len(y)):
+  sim = cosine_similarity(W[word_to_index[x_1[i]]] - W[word_to_index[x_2[i]]] + W[word_to_index[x_3[i]]],
+                          W[word_to_index[y[i]]])
+print(f"Similarity between [{x_1[i]} - {x_2[i]} + {x_3[i]}]and {y[i]} is : {sim}")
+
+from sklearn.manifold import TSNE
+
+labels = []
+tokens = []
+
+for i in range(len(index_to_word)):
+    tokens.append(W[i,:])
+    labels.append(index_to_word[i])
+
+tsne_model = TSNE(perplexity=40, n_components=2, init='pca', n_iter=2500, random_state=23)
+new_values = tsne_model.fit_transform(tokens)
 
