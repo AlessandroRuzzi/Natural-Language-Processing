@@ -1,9 +1,7 @@
 import random
-import sys
-from typing import Callable, List
+from typing import Callable
 
 import numpy as np
-import pandas as pd
 import sklearn.model_selection
 from sklearn.datasets import make_classification
 from sklearn.linear_model import LogisticRegression
@@ -42,6 +40,8 @@ class LogLinearModel:
             descent steps during `fit`
 
         """
+
+
         self.feature_function = feature_function
         self.learning_rate = learning_rate
         self.verbose = verbose
@@ -64,6 +64,8 @@ class LogLinearModel:
         None
 
         """
+
+
         self.gradient_value = self.gradient_loss(y,self.parameters,self.positive_features,self.negative_features)
         step_update = self.learning_rate * self.gradient_value
         self.parameters = np.subtract(self.parameters,step_update)
@@ -83,18 +85,26 @@ class LogLinearModel:
         None
 
         """
-        self.parameters = np.random.rand(2*X.shape[1])
-        self.positive_features = feature_function(X, np.ones(y.shape))
-        self.negative_features = feature_function(X, np.zeros(y.shape))
+
+
+        self.parameters = np.random.rand(2*X.shape[1])  ## initialise the parameters with random values between 0 and 1
+        self.positive_features = feature_function(X, np.ones(y.shape)) ## produce the features with label 1
+        self.negative_features = feature_function(X, np.zeros(y.shape)) ## produce the features with label 0
 
         for epoch in range(self.iterations):
+
+            ## perform a gradient descent step and calculate the old and new loss
+
             prev_loss = self.loss(y,self.parameters,self.positive_features,self.negative_features)
             self.gradient_descent(y)
             curr_loss = self.loss(y,self.parameters,self.positive_features,self.negative_features)
+
+            ##print all the details
+
             if self.verbose:
                 abs_changes = np.abs(self.gradient_value)
                 print(f"Current Iteration: {epoch}/{self.iterations} || Current loss: {curr_loss} || Change in loss: {np.abs(curr_loss-prev_loss)}"
-                      f" || Absolute Largest value: {np.max(abs_changes)} Coefficient index: {np.argmax(abs_changes)}")
+                      f" || Absolute Largest Parameter Change: {np.max(abs_changes)} || Parameter index: {np.argmax(abs_changes)}")
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         """Predicts binary target labels for input data `X`.
@@ -110,17 +120,37 @@ class LogLinearModel:
             Predicted binary target labels
 
         """
-        self.positive_features = feature_function(X, np.ones(X.shape[0]))
-        self.negative_features = feature_function(X, np.zeros(X.shape[0]))
+
+
+        self.positive_features = feature_function(X, np.ones(X.shape[0])) ## produce the features with label 1
+        self.negative_features = feature_function(X, np.zeros(X.shape[0])) ## produce the features with label 0
         prediction = np.zeros(shape=(X.shape[0],2))
         for i in range(X.shape[0]):
-            prediction[i][0] = probs(0,i, self.parameters,self.positive_features,self.negative_features)
-            prediction[i][1] = probs(1,i, self.parameters, self.positive_features, self.negative_features)
+            prediction[i][0] = probs(0,i, self.parameters,self.positive_features,self.negative_features) ##gives the score  considering the label as zero
+            prediction[i][1] = probs(1,i, self.parameters, self.positive_features, self.negative_features) ##gives the score  considering the label as one
 
-        return np.argmax(prediction,axis=1)
+        return np.argmax(prediction,axis=1)  ##takes the label that has the max score for each sample
 
 
 def feature_function(X: np.ndarray, y: np.ndarray):
+    """Produce the features to be used to fit the model by taking an input sample of dimension m and producing
+       an output sample of dimension 2*m that is like [features,0] if label=0 or [0,features] if label=1.
+
+    Parameters
+    ---
+    X : np.ndarray
+        Input data matrix
+    y : np.ndarray
+        Binary target values
+
+    Returns
+    ---
+    np.ndarray
+        Input Features matrix
+
+    """
+
+
     features = np.zeros(shape=(X.shape[0], 2*X.shape[1]))
     for i in range(len(y)):
         if y[i] == 1:
@@ -132,6 +162,27 @@ def feature_function(X: np.ndarray, y: np.ndarray):
     return features
 
 def negative_log_likelihood(y: np.ndarray, parameters, positive_features,negative_features):
+    """Helper function that calculate the negative log likelihood using all the training set.
+
+    Parameters
+    ---
+    y : np.ndarray
+        Binary target values
+    parameters : np.ndarray
+        fitted parameters
+    positive_features : np.ndarray
+        features if all label=1
+    negative_features : np.ndarray
+        features if all label=0
+
+    Returns
+    ---
+    float
+        negative log likelihood
+
+    """
+
+
     nll = 0
     for i in range(len(y)):
             if y[i] ==1:
@@ -146,6 +197,29 @@ def negative_log_likelihood(y: np.ndarray, parameters, positive_features,negativ
 
 
 def probs(y: int,index, parameters, positive_features,negative_features):
+    """Function that calculate the score for a sample at position "index" given the label y.
+
+    Parameters
+    ---
+    y : int
+        target value at position given by index
+    index : int
+        sample position
+    parameters : np.ndarray
+        fitted parameters
+    positive_features : np.ndarray
+        features if all label=1
+    negative_features : np.ndarray
+        features if all label=0
+
+    Returns
+    ---
+    float
+        score of sample at position "index" given the label y
+
+    """
+
+
     if y == 1:
         numerator = np.exp(np.dot(parameters, positive_features[index]))
     else:
@@ -157,6 +231,27 @@ def probs(y: int,index, parameters, positive_features,negative_features):
 
 
 def gradient_negative_log_likelihood(y: np.ndarray, parameters, positive_features,negative_features):
+    """Helper function that calculate the gradient of the negative log likelihood using all the training set.
+
+    Parameters
+    ---
+    y : np.ndarray
+        Binary target values
+    parameters : np.ndarray
+        fitted parameters
+    positive_features : np.ndarray
+        features if all label=1
+    negative_features : np.ndarray
+        features if all label=0
+
+    Returns
+    ---
+    float
+        gradient of the negative log likelihood
+
+    """
+
+
     grad_nll = np.zeros(parameters.shape)
     for i in range(len(y)):
         if y[i] == 1:
@@ -170,10 +265,27 @@ def gradient_negative_log_likelihood(y: np.ndarray, parameters, positive_feature
     return grad_nll
 
 def map_param(parameters : np.ndarray):
+    """Helper function that map features from dimension 2*m to dimension m.
+
+    Parameters
+    ---
+    parameters : np.ndarray
+        features array of dimension 2*m
+
+    Returns
+    ---
+    np.ndarray
+        features array  of dimension m
+
+    """
+
+
     new_parameters = np.zeros(shape=(int(parameters.shape[0]/2)))
     for i in range(int(len(parameters)/2)):
         new_parameters[i] = parameters[(int(parameters.shape[0]/2)) +i] - parameters[i]
     return new_parameters
+
+
 
 # Set seeds to ensure reproducibility
 np.random.seed(42)
@@ -323,6 +435,7 @@ print(f"logistic regression train accuracy third dataset: {in_sample_lr_third}")
 print(f"log linear model test accuracy third dataset: {out_sample_llm_third}")
 print(f"logistic regression test accuracy third dataset: {out_sample_lr_third}")
 
+plt.rcParams["figure.figsize"] = (13,7)
 
 data_dim = list((100,1000,10000))
 values_in_sample_llm = list((in_sample_llm_first,in_sample_llm_second,in_sample_llm_third))
@@ -341,7 +454,9 @@ plt.ylabel('Accuracy')
 plt.plot(data_dim, values_in_sample_lr,label = "Logistic Regression")
 plt.legend()
 plt.title('In-sample Accuracy')
+plt.savefig("/Users/alessandroruzzi/PycharmProjects/Natural-Language-Processing-2021/figures/in_sample_accuracy.png")
 plt.show()
+
 
 plt.plot(data_dim, values_out_sample_llm,label = "Log Linear Model")
 plt.xlabel('Number of Samples')
@@ -349,6 +464,7 @@ plt.ylabel('Accuracy')
 plt.plot(data_dim, values_out_sample_lr,label = "Logistic Regression")
 plt.legend()
 plt.title('Out-of-sample Accuracy')
+plt.savefig("/Users/alessandroruzzi/PycharmProjects/Natural-Language-Processing-2021/figures/out_of_sample_accuracy.png")
 plt.show()
 
 plt.plot(data_dim, values_time_fit_llm,label = "Log Linear Model")
@@ -357,6 +473,7 @@ plt.ylabel('Time (seconds)')
 plt.plot(data_dim, values_time_fit_lr,label = "Logistic Regression")
 plt.legend()
 plt.title('Training Time')
+plt.savefig("/Users/alessandroruzzi/PycharmProjects/Natural-Language-Processing-2021/figures/training_time.png")
 plt.show()
 
 plt.plot(data_dim, values_time_pred_llm,label = "Log Linear Model")
@@ -365,6 +482,7 @@ plt.ylabel('Time (seconds)')
 plt.plot(data_dim, values_time_pred_lr,label = "Logistic Regression")
 plt.legend()
 plt.title('Prediction Time')
+plt.savefig("/Users/alessandroruzzi/PycharmProjects/Natural-Language-Processing-2021/figures/prediction_time.png")
 plt.show()
 
 
@@ -375,6 +493,7 @@ plt.scatter(list(range(lr_first.coef_.shape[1])), lr_first.coef_.T,label = "Logi
 plt.legend()
 plt.title('Coefficients Values 100 samples')
 plt.xticks(list(range(lr_first.coef_.shape[1])))
+plt.savefig("/Users/alessandroruzzi/PycharmProjects/Natural-Language-Processing-2021/figures/coeff_100.png")
 plt.show()
 
 plt.scatter(list(range(map_param(llm_second.parameters).shape[0])), map_param(llm_second.parameters),label = "Log Linear Model")
@@ -384,6 +503,7 @@ plt.scatter(list(range(lr_second.coef_.shape[1])), lr_second.coef_.T,label = "Lo
 plt.legend()
 plt.title('Coefficients Values 1000 samples')
 plt.xticks(list(range(lr_second.coef_.shape[1])))
+plt.savefig("/Users/alessandroruzzi/PycharmProjects/Natural-Language-Processing-2021/figures/coeff_1000.png")
 plt.show()
 
 
@@ -394,6 +514,7 @@ plt.scatter(list(range(lr_third.coef_.shape[1])), lr_third.coef_.T,label = "Logi
 plt.legend()
 plt.title('Coefficients Values 10000 samples')
 plt.xticks(list(range(lr_third.coef_.shape[1])))
+plt.savefig("/Users/alessandroruzzi/PycharmProjects/Natural-Language-Processing-2021/figures/coeff_10000.png")
 plt.show()
 
 
